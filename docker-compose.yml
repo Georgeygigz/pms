@@ -1,0 +1,50 @@
+version: "3.9"
+services:
+  database:
+    restart: always
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=backend
+      - POSTGRES_DB=pms
+    volumes:
+      - ./pms_db:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - back-end
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - back-end
+  app:
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    image: pms-api-image
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - database
+    entrypoint: ["/bin/bash", "-c", "/app/start_api.sh"]
+    stdin_open: true
+    tty: true
+    networks:
+      - back-end
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_USER=postgres
+      - DB_PASSWORD=backend
+      - DB_NAME=pms
+      - DB_HOST=database
+      - DB_PORT=5432
+      - SECRET_KEY=secure-me
+networks:
+  back-end:
